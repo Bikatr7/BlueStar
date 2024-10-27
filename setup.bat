@@ -1,6 +1,9 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
 
+:: Store the root directory
+set ROOT_DIR=%CD%
+
 echo Installing BlueStar...
 
 :: Prompt for Hugging Face token first
@@ -35,81 +38,111 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Remove existing virtual environment if it exists
+:: Check if virtual environment exists and is up to date
+set RECREATE_VENV=0
 if exist "venv" (
-    echo Removing existing virtual environment...
-    rmdir /s /q venv
+    echo Found existing virtual environment, checking if it's up to date...
+    venv\Scripts\python -m pip check
     if errorlevel 1 (
-        echo Failed to remove existing virtual environment!
-        echo Please close any programs that might be using it and try again.
+        echo Virtual environment is outdated, recreating...
+        set RECREATE_VENV=1
+    ) else (
+        venv\Scripts\python -m pip install -r requirements.txt --dry-run
+        if errorlevel 1 (
+            echo Virtual environment is missing some packages, recreating...
+            set RECREATE_VENV=1
+        ) else (
+            echo Virtual environment is up to date, skipping recreation...
+        )
+    )
+) else (
+    set RECREATE_VENV=1
+)
+
+:: Create/Recreate virtual environment if needed
+if %RECREATE_VENV%==1 (
+    if exist "venv" (
+        echo Removing existing virtual environment...
+        rmdir /s /q venv
+        if errorlevel 1 (
+            echo Failed to remove existing virtual environment!
+            echo Please close any programs that might be using it and try again.
+            exit /b 1
+        )
+    )
+    echo Creating virtual environment...
+    python -m venv venv
+    if errorlevel 1 (
+        echo Failed to create virtual environment!
         exit /b 1
     )
-)
-
-:: Create virtual environment
-echo Creating virtual environment...
-python -m venv venv
-if errorlevel 1 (
-    echo Failed to create virtual environment!
-    exit /b 1
-)
-
-:: Activate virtual environment
-echo Activating virtual environment...
-call venv\Scripts\activate.bat
-if errorlevel 1 (
-    echo Failed to activate virtual environment!
-    exit /b 1
-)
-
-:: Upgrade pip
-echo Upgrading pip...
-python -m pip install --upgrade pip
-if errorlevel 1 (
-    echo Failed to upgrade pip!
-    exit /b 1
-)
-
-:: Install requirements
-echo Installing requirements...
-pip install -r requirements.txt
-if errorlevel 1 (
-    echo Failed to install requirements!
-    exit /b 1
+    
+    echo Activating virtual environment...
+    call venv\Scripts\activate.bat
+    if errorlevel 1 (
+        echo Failed to activate virtual environment!
+        exit /b 1
+    )
+    
+    echo Upgrading pip...
+    python -m pip install --upgrade pip
+    if errorlevel 1 (
+        echo Failed to upgrade pip!
+        exit /b 1
+    )
+    
+    echo Installing requirements...
+    pip install -r requirements.txt
+    if errorlevel 1 (
+        echo Failed to install requirements!
+        exit /b 1
+    )
+) else (
+    echo Activating virtual environment...
+    call venv\Scripts\activate.bat
 )
 
 :: Create necessary directories
 echo Creating directories...
-if not exist "models\mistral-7b" mkdir models\mistral-7b
-if not exist "data\corpus" mkdir data\corpus
+if not exist "%ROOT_DIR%\BlueStar\models\mistral-7b" mkdir "%ROOT_DIR%\BlueStar\models\mistral-7b"
+if not exist "%ROOT_DIR%\BlueStar\data\corpus" mkdir "%ROOT_DIR%\BlueStar\data\corpus"
 
-:: Download model if not exists
-echo Checking for existing model...
-if exist "models\mistral-7b\config.json" (
-    echo Found existing model files, skipping download...
-) else (
-    echo Downloading Mistral-7B model...
-    cd models\mistral-7b
+:: Check for model files
+echo Checking for model files...
+set MODEL_FILES_MISSING=0
+for %%f in (config.json model-00001-of-00002.safetensors model-00002-of-00002.safetensors tokenizer.model tokenizer.json) do (
+    if not exist "%ROOT_DIR%\BlueStar\models\mistral-7b\%%f" (
+        set MODEL_FILES_MISSING=1
+    )
+)
+
+if %MODEL_FILES_MISSING%==1 (
+    echo Some model files are missing. Downloading Mistral-7B...
+    cd "%ROOT_DIR%\BlueStar\models\mistral-7b"
     python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='mistralai/Mistral-7B-v0.1', local_dir='.')"
     if errorlevel 1 (
         echo Failed to download model!
-        echo Please ensure you've agreed to share contact information at https://huggingface.co/mistralai/Mistral-7B-v0.1
-        cd ..\..
+        echo If this keeps happening, try:
+        echo 1. Ensure you've agreed to share contact information at https://huggingface.co/mistralai/Mistral-7B-v0.1
+        echo 2. Delete the %ROOT_DIR%\BlueStar\models\mistral-7b directory and run setup again
+        cd "%ROOT_DIR%"
         exit /b 1
     )
-    cd ..\..
+    cd "%ROOT_DIR%"
+) else (
+    echo Found existing model files, skipping download...
 )
 
 :: Create corpus and build retrieval index
 echo Creating corpus...
-python scripts\create_corpus.py
+python "%ROOT_DIR%\BlueStar\scripts\create_corpus.py"
 if errorlevel 1 (
     echo Failed to create corpus!
     exit /b 1
 )
 
 echo Building retrieval index...
-python scripts\build_retrieval.py
+python "%ROOT_DIR%\BlueStar\scripts\build_retrieval.py"
 if errorlevel 1 (
     echo Failed to build retrieval index!
     exit /b 1
@@ -117,7 +150,7 @@ if errorlevel 1 (
 
 :: Quantize model
 echo Quantizing model...
-python scripts\quantize_model.py
+python "%ROOT_DIR%\BlueStar\scripts\quantize_model.py"
 if errorlevel 1 (
     echo Failed to quantize model!
     exit /b 1
@@ -125,6 +158,6 @@ if errorlevel 1 (
 
 echo Setup Complete!
 echo To activate the virtual environment, run: venv\Scripts\activate.bat
-echo To start the CLI, run: python scripts\run_cli.py
+echo To start the CLI, run: python BlueStar\scripts\run_cli.py
 
 ENDLOCAL

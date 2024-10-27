@@ -7,28 +7,40 @@ def download_wikipedia_corpus(num_articles=1000):
     os.makedirs(corpus_dir, exist_ok=True)
     
     print("Loading Wikipedia dataset...")
+    ## Load a specific subset focused on ML/AI topics
     dataset = load_dataset(
         "wikipedia", 
         "20220301.en", 
-        split=f"train[:{num_articles}]"
+        split="train",
+        streaming=True  ## Stream to avoid loading entire dataset
     )
     
-    print(f"Processing {len(dataset)} Wikipedia articles...")
-    for i, article in enumerate(dataset):
-        title = article['title'].replace('/', '_')  ## Clean filename
-        content = f"Title: {article['title']}\n\n{article['text']}"
-        
-        ## Save article
-        filename = f"{i:04d}_{title[:50]}.txt"  ## Limit filename length
-        filepath = os.path.join(corpus_dir, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        if i % 100 == 0:
-            print(f"Processed {i} articles...")
+    ## Filter for relevant articles
+    keywords = ['machine learning', 'artificial intelligence', 'deep learning', 
+                'neural network', 'computer science', 'data science']
     
-    print(f"Created corpus with {len(dataset)} articles in {corpus_dir}")
+    print(f"Filtering for relevant articles...")
+    articles_saved = 0
+    for article in dataset:
+        if articles_saved >= num_articles:
+            break
+            
+        ## Check if article is relevant
+        if any(keyword in article['text'].lower() for keyword in keywords):
+            title = article['title'].replace('/', '_')
+            content = f"Title: {article['title']}\n\n{article['text']}"
+            
+            filename = f"{articles_saved:04d}_{title[:50]}.txt"
+            filepath = os.path.join(corpus_dir, filename)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            articles_saved += 1
+            if articles_saved % 10 == 0:
+                print(f"Saved {articles_saved} relevant articles...")
+    
+    print(f"Created corpus with {articles_saved} articles in {corpus_dir}")
 
 if __name__ == "__main__":
     download_wikipedia_corpus()

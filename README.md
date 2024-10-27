@@ -15,7 +15,7 @@ A lightweight, local Retrieval-Augmented Generation (RAG) system that runs entir
 - Linux-based OS or Windows 10/11 (yet to be tested on either yet)
 - Python 3.8+
 - 16GB RAM minimum
-- 20GB free disk space
+- 20GB free disk space (model is roughly 15GB, venv is roughly 3GB)
 - CPU with AVX2 support (most modern processors)
 - Hugging Face account with access token
 
