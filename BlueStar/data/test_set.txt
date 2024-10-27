@@ -1,8 +1,6 @@
 What is machine learning?
-How does natural language processing work?
-Can you explain neural networks?
-What are the applications of deep learning?
-What is transfer learning?
-How does reinforcement learning work?
+How do neural networks work?
+Explain deep learning architecture
+What are the applications of artificial intelligence?
 What is the difference between supervised and unsupervised learning?
 

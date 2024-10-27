@@ -14,15 +14,21 @@ sys.path.insert(0, bluestar_dir)
 from BlueStar.utils.retrieval import Retriever
 from BlueStar.utils.generation import RAGModel
 
-def spinner_task():
+## Add threading.Event for controlling the spinner
+def spinner_task(stop_event):
     """Animated spinner to show the model is working"""
     spinner = cycle(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'])
-    while True:
+    while not stop_event.is_set():
         sys.stdout.write(f"\rThinking {next(spinner)} ")
         sys.stdout.flush()
         time.sleep(0.1)
+    sys.stdout.write('\r' + ' ' * 20 + '\r')
+    sys.stdout.flush()
 
 @click.command()
+@click.option('--model-path',
+    default=os.path.join(os.path.dirname(__file__), "..", "models", "quantized-gpt2-large"),
+    help='Path to quantized model.')
 @click.option('--index-path',
     default=os.path.join(os.path.dirname(__file__), "..", "data", "faiss_index.bin"),
     help='Path to FAISS index.')
@@ -30,13 +36,13 @@ def spinner_task():
     default=os.path.join(os.path.dirname(__file__), "..", "data", "corpus.pkl"),
     help='Path to the corpus pickle file.')
 @click.option('--device',
-    default='auto',
-    help='Device to use for model inference. Options: "auto", "cpu", or "cuda".')
-def main(index_path, corpus_path, device):
+    default='cpu',
+    help='Device to use for model inference. Currently only supports CPU.')
+def main(model_path, index_path, corpus_path, device):
     try:
         click.echo("Initializing BlueStar...")
         retriever = Retriever(index_path, corpus_path)
-        rag = RAGModel(None, retriever, device)
+        rag = RAGModel(model_path, retriever, device)
         click.echo("Initialization complete!")
     except Exception as e:
         click.echo(f"Error initializing BlueStar: {e}")
@@ -60,7 +66,9 @@ def main(index_path, corpus_path, device):
                 click.echo(f"Refining query: {refined_query}")
                 query = refined_query
                 
-            spinner = threading.Thread(target=spinner_task)
+            ## Create stop event and start spinner
+            stop_spinner = threading.Event()
+            spinner = threading.Thread(target=spinner_task, args=(stop_spinner,))
             spinner.daemon = True
             spinner.start()
             
@@ -71,6 +79,7 @@ def main(index_path, corpus_path, device):
             try:
                 response, sources = rag.generate_response(query)
             except RuntimeError as e:
+                stop_spinner.set()
                 if "out of memory" in str(e):
                     click.echo("Error: Out of memory. Please try a shorter query or free up system resources.")
                     continue
@@ -82,22 +91,23 @@ def main(index_path, corpus_path, device):
             cpu_end, ram_end = monitor_resources()
             end_time = time.time()
             
-            ## Clear spinner line and print response
-            sys.stdout.write('\r' + ' ' * 20 + '\r')
+            ## Stop the spinner
+            stop_spinner.set()
+            spinner.join()
+            
             click.echo(f"BlueStar: {response}")
             if sources:
                 click.echo("\nSources:")
                 for i, doc in enumerate(sources, 1):
                     click.echo(f"{i}. {doc[:200]}...")
             
-            ## Print performance metrics
             click.echo(f"\nPerformance Metrics:")
             click.echo(f"Response Time: {end_time - start_time:.2f}s")
             click.echo(f"CPU Usage: {cpu_end - cpu_start:.1f}%")
             click.echo(f"RAM Usage: {ram_end - ram_start:.1f}%")
                     
         except Exception as e:
-            sys.stdout.write('\r' + ' ' * 20 + '\r')
+            stop_spinner.set()
             click.echo(f"An error occurred: {e}")
 
 if __name__ == "__main__":
