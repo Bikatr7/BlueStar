@@ -1,5 +1,5 @@
 transformers==4.30.0
-torch==2.0.1
+torch==2.2.0
 faiss-cpu==1.7.3
 sentence-transformers==2.2.2
 click==8.1.3
