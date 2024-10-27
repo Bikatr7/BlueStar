@@ -29,23 +29,17 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-## Create necessary directories
+## Create all necessary directories
 mkdir -p "${ROOT_DIR}/BlueStar/data/corpus"
+mkdir -p "${ROOT_DIR}/BlueStar/data/raw"
+mkdir -p "${ROOT_DIR}/BlueStar/models"
 
-## Create corpus and build retrieval index only if needed
-if ls "${ROOT_DIR}/BlueStar/data/corpus/"*.txt >/dev/null 2>&1; then
-    echo "Found existing corpus files, skipping corpus creation..."
-else
-    echo "Creating corpus..."
-    python3 "${ROOT_DIR}/BlueStar/scripts/create_corpus.py"
-fi
+## Create corpus and build retrieval index
+echo "Creating corpus..."
+python3 "${ROOT_DIR}/BlueStar/scripts/create_corpus.py"
 
-if [ -f "${ROOT_DIR}/BlueStar/data/faiss_index.bin" ]; then
-    echo "Found existing retrieval index, skipping build..."
-else
-    echo "Building retrieval index..."
-    python3 "${ROOT_DIR}/BlueStar/scripts/build_retrieval.py"
-fi
+echo "Building retrieval index..."
+python3 "${ROOT_DIR}/BlueStar/scripts/build_retrieval.py"
 
 echo "Setup Complete!"
 echo "To activate the virtual environment, run: source venv/bin/activate"
