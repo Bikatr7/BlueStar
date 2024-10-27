@@ -29,9 +29,13 @@ def save_corpus(documents, corpus_path: str):
     print(f"Corpus saved to {corpus_path}")
 
 if __name__ == "__main__":
-    CORPUS_DIR = "../data/corpus/"
-    INDEX_PATH = "../data/faiss_index.bin"
-    CORPUS_PATH = "../data/corpus.pkl"
+    ## Get the absolute path to the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    ## Define paths relative to the script location
+    CORPUS_DIR = os.path.join(script_dir, "..", "data", "corpus")
+    INDEX_PATH = os.path.join(script_dir, "..", "data", "faiss_index.bin")
+    CORPUS_PATH = os.path.join(script_dir, "..", "data", "corpus.pkl")
 
     documents = load_corpus(CORPUS_DIR)
     save_corpus(documents, CORPUS_PATH)

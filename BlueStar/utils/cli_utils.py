@@ -29,11 +29,14 @@ def spinner_task():
 @click.option('--corpus-path',
     default=os.path.join(os.path.dirname(__file__), "..", "data", "corpus.pkl"),
     help='Path to the corpus pickle file.')
-def main(index_path, corpus_path):
+@click.option('--device',
+    default='auto',
+    help='Device to use for model inference. Options: "auto", "cpu", or "cuda".')
+def main(index_path, corpus_path, device):
     try:
         click.echo("Initializing BlueStar...")
         retriever = Retriever(index_path, corpus_path)
-        rag = RAGModel(None, retriever)
+        rag = RAGModel(None, retriever, device)
         click.echo("Initialization complete!")
     except Exception as e:
         click.echo(f"Error initializing BlueStar: {e}")
@@ -65,7 +68,15 @@ def main(index_path, corpus_path):
             cpu_start, ram_start = monitor_resources()
             
             ## Generate response
-            response, sources = rag.generate_response(query)
+            try:
+                response, sources = rag.generate_response(query)
+            except RuntimeError as e:
+                if "out of memory" in str(e):
+                    click.echo("Error: Out of memory. Please try a shorter query or free up system resources.")
+                    continue
+                else:
+                    click.echo(f"An error occurred during generation: {str(e)}")
+                    continue
             
             ## Get resource usage
             cpu_end, ram_end = monitor_resources()
