@@ -4,31 +4,20 @@ setlocal
 :: Store the root directory
 set ROOT_DIR=%CD%
 
-:: Create virtual environment
-python -m venv venv
+:: Create virtual environment if it doesn't exist
+if not exist "venv" (
+    echo Creating virtual environment...
+    python -m venv venv
+) else (
+    echo Virtual environment already exists, skipping creation...
+)
+
 call venv\Scripts\activate.bat
 
 :: Install dependencies first
 echo Installing dependencies...
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-
-:: Now prompt for Hugging Face token
-echo Before proceeding, you need to:
-echo 1. Create a Hugging Face account at https://huggingface.co/join
-echo 2. Visit https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1
-echo 3. Click 'Access repository' and agree to share your contact information
-echo 4. Get your access token from https://huggingface.co/settings/tokens
-echo.
-set /p HF_TOKEN="Enter your Hugging Face token: "
-
-:: Login to Hugging Face
-echo Logging in to Hugging Face...
-python -c "from huggingface_hub import login; login('%HF_TOKEN%')"
-if errorlevel 1 (
-    echo Failed to login to Hugging Face! Please check your token and try again.
-    exit /b 1
-)
 
 :: Create all necessary directories
 mkdir "%ROOT_DIR%\BlueStar\data\corpus" 2>nul

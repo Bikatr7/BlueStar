@@ -5,31 +5,20 @@ ROOT_DIR="$(pwd)"
 
 apt install python3.10-venv
 
-## Create virtual environment
-python3 -m venv venv
+## Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+else
+    echo "Virtual environment already exists, skipping creation..."
+fi
+
 source venv/bin/activate
 
 ## Install dependencies first
 echo "Installing dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
-
-## Now prompt for Hugging Face token
-echo "Before proceeding, you need to:"
-echo "1. Create a Hugging Face account at https://huggingface.co/join"
-echo "2. Visit https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1"
-echo "3. Click 'Access repository' and agree to share your contact information"
-echo "4. Get your access token from https://huggingface.co/settings/tokens"
-echo
-read -p "Enter your Hugging Face token: " HF_TOKEN
-
-## Login to Hugging Face
-echo "Logging in to Hugging Face..."
-python3 -c "from huggingface_hub import login; login('$HF_TOKEN')"
-if [ $? -ne 0 ]; then
-    echo "Failed to login to Hugging Face! Please check your token and try again."
-    exit 1
-fi
 
 ## Create all necessary directories
 mkdir -p "${ROOT_DIR}/BlueStar/data/corpus"
