@@ -63,8 +63,7 @@ BlueStar leverages PyTorch's dynamic quantization to optimize the GPT-2 Large mo
 
 2. **Run the Setup Script:**
     ```bash
-    chmod +x setup.sh
-    ./setup.sh
+    sh setup.sh
     ```
 
 ## Setup Process
