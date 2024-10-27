@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 from itertools import cycle
+from BlueStar.utils.metrics import monitor_resources
 
 ## Add the BlueStar directory to the Python path
 utils_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,20 +23,17 @@ def spinner_task():
         time.sleep(0.1)
 
 @click.command()
-@click.option('--model-path', 
-    default=os.path.join(os.path.dirname(__file__), "..", "models", "quantized-mistral-7b"),
-    help='Path to the quantized model.')
 @click.option('--index-path',
     default=os.path.join(os.path.dirname(__file__), "..", "data", "faiss_index.bin"),
     help='Path to FAISS index.')
 @click.option('--corpus-path',
     default=os.path.join(os.path.dirname(__file__), "..", "data", "corpus.pkl"),
     help='Path to the corpus pickle file.')
-def main(model_path, index_path, corpus_path):
+def main(index_path, corpus_path):
     try:
         click.echo("Initializing BlueStar...")
         retriever = Retriever(index_path, corpus_path)
-        rag = RAGModel(model_path, retriever)
+        rag = RAGModel(None, retriever)
         click.echo("Initialization complete!")
     except Exception as e:
         click.echo(f"Error initializing BlueStar: {e}")
@@ -47,25 +45,48 @@ def main(model_path, index_path, corpus_path):
             query = click.prompt('You', type=str)
             if query.lower() in ['exit', 'quit']:
                 break
+            
+            ## Check if topic is allowed
+            if not rag.is_allowed_topic(query):
+                click.echo("I apologize, but I cannot assist with that topic due to ethical constraints.")
+                continue
+            
+            ## Refine query if needed
+            refined_query = rag.refine_query(query)
+            if refined_query != query:
+                click.echo(f"Refining query: {refined_query}")
+                query = refined_query
                 
-            ## Start spinner in a separate thread
             spinner = threading.Thread(target=spinner_task)
             spinner.daemon = True
             spinner.start()
             
+            start_time = time.time()
+            cpu_start, ram_start = monitor_resources()
+            
             ## Generate response
             response, sources = rag.generate_response(query)
             
+            ## Get resource usage
+            cpu_end, ram_end = monitor_resources()
+            end_time = time.time()
+            
             ## Clear spinner line and print response
-            sys.stdout.write('\r' + ' ' * 20 + '\r')  ## Clear spinner
+            sys.stdout.write('\r' + ' ' * 20 + '\r')
             click.echo(f"BlueStar: {response}")
             if sources:
-                click.echo("Sources:")
+                click.echo("\nSources:")
                 for i, doc in enumerate(sources, 1):
                     click.echo(f"{i}. {doc[:200]}...")
+            
+            ## Print performance metrics
+            click.echo(f"\nPerformance Metrics:")
+            click.echo(f"Response Time: {end_time - start_time:.2f}s")
+            click.echo(f"CPU Usage: {cpu_end - cpu_start:.1f}%")
+            click.echo(f"RAM Usage: {ram_end - ram_start:.1f}%")
                     
         except Exception as e:
-            sys.stdout.write('\r' + ' ' * 20 + '\r')  ## Clear spinner
+            sys.stdout.write('\r' + ' ' * 20 + '\r')
             click.echo(f"An error occurred: {e}")
 
 if __name__ == "__main__":

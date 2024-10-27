@@ -1,82 +1,95 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from BlueStar.utils.retrieval import Retriever
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, pipeline
+import textwrap
+from BlueStar.utils.retrieval import Retriever
 
 class RAGModel:
     def __init__(self, model_path: str, retriever: Retriever, device: str = 'cpu'):
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                device_map=device,
-                torch_dtype=torch.float16,
-                low_cpu_mem_usage=True
+            ## Load from Hugging Face
+            model_id = "mistralai/Mistral-7B-Instruct-v0.1"
+            print(f"Loading model from {model_id}...")
+            
+            ## Configure 4-bit quantization
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16
             )
-            ## Set pad token to eos token
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
-                self.model.config.pad_token_id = self.model.config.eos_token_id
+            
+            ## Load tokenizer and model
+            self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                quantization_config=quantization_config,
+                trust_remote_code=True,
+                device_map="auto"
+            )
+            
+            ## Create pipeline
+            self.pipeline = pipeline(
+                "text-generation",
+                model=self.model,
+                tokenizer=self.tokenizer,
+                temperature=0.85,
+                repetition_penalty=1.1,
+                return_full_text=True,
+                max_new_tokens=256,
+                device_map="auto"
+            )
+            
+            print("Model loaded successfully")
             
         except Exception as e:
-            raise Exception(f"Failed to load model from {model_path}: {str(e)}")
+            raise Exception(f"Failed to load model: {str(e)}")
             
         self.retriever = retriever
         self.device = device
-        self.disallowed_topics = ['violence', 'illegal', 'hate', 'privacy']
-        self.max_context_length = 2048
-        self.max_new_tokens = 512  ## Maximum new tokens to generate
-        self.system_prompt = """You are a helpful AI assistant. Always provide accurate, 
-        factual information based on the given context. If you're unsure or the context 
-        doesn't contain relevant information, say so."""
+        self.COLUMN_WIDTH = 76
 
-    def is_allowed(self, query: str):
-        query_lower = query.lower()
-        for topic in self.disallowed_topics:
-            if topic in query_lower:
-                return False
-        return True
+    def clean_text(self, text: str) -> str:
+        """Remove newlines and special characters"""
+        return text.replace('\n', ' ').replace('\r', '').strip()
 
-    def generate_response(self, query: str, top_k: int = 5):
-        if not self.is_allowed(query):
-            return "I apologize, but I cannot assist with that topic due to ethical constraints.", []
+    def wrap_text(self, text: str) -> str:
+        """Wrap text to specified column width"""
+        return textwrap.fill(text, width=self.COLUMN_WIDTH)
 
-        ## Retrieve and format relevant documents
-        retrieved_docs = self.retriever.retrieve(query, top_k)
-        formatted_docs = []
-        for i, doc in enumerate(retrieved_docs, 1):
-            formatted_docs.append(f"[Document {i}]: {doc}")
-        
-        context = "\n\n".join(formatted_docs)
-        
-        ## Construct prompt with system instruction and context
-        prompt = f"{self.system_prompt}\n\nContext:\n{context}\n\nQuestion: {query}\nAnswer:"
-        
+    def generate_response(self, query: str, top_k: int = 3) -> tuple[str, list]:
         try:
-            inputs = self.tokenizer(
-                prompt, 
-                return_tensors='pt',
-                truncation=True,
-                max_length=self.max_context_length,
-                padding=True
-            ).to(self.device)
+            ## Get relevant documents
+            retrieved_docs = self.retriever.retrieve(query, top_k)
+            context = "\n".join(retrieved_docs)
             
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                num_return_sequences=1,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=self.tokenizer.pad_token_id
-            )
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            ## Create prompt
+            prompt = f"""You are an AI assistant. Use the following context to answer the question.
+
+Context: {context}
+
+Question: {query}
+Answer:"""
             
-            ## Format response with source citations
-            final_response = f"{response}\n\nSources:"
-            for i, doc in enumerate(retrieved_docs, 1):
-                final_response += f"\n{i}. {doc[:100]}..."
-                
-            return final_response, retrieved_docs
+            ## Generate using pipeline
+            response = self.pipeline(prompt)[0]['generated_text']
+            
+            ## Clean and format response
+            response = response[len(prompt):]
+            response = self.clean_text(response)
+            response = self.wrap_text(response)
+            
+            return response, retrieved_docs
             
         except Exception as e:
-            return f"An error occurred while generating the response: {str(e)}", []
+            return f"An error occurred: {str(e)}", []
+
+    def is_allowed_topic(self, query: str) -> bool:
+        """Check if query is about allowed topics"""
+        disallowed = ['violence', 'illegal', 'hate speech', 'adult content']
+        return not any(topic in query.lower() for topic in disallowed)
+
+    def refine_query(self, query: str) -> str:
+        """Improve query clarity if needed"""
+        if len(query) < 10:
+            return f"Please elaborate on: {query}"
+        return query
