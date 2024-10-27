@@ -105,6 +105,7 @@ if %RECREATE_VENV%==1 (
 :: Create necessary directories
 echo Creating directories...
 if not exist "%ROOT_DIR%\BlueStar\models\mistral-7b" mkdir "%ROOT_DIR%\BlueStar\models\mistral-7b"
+if not exist "%ROOT_DIR%\BlueStar\models\quantized-mistral-7b" mkdir "%ROOT_DIR%\BlueStar\models\quantized-mistral-7b"
 if not exist "%ROOT_DIR%\BlueStar\data\corpus" mkdir "%ROOT_DIR%\BlueStar\data\corpus"
 
 :: Check for model files
@@ -133,19 +134,29 @@ if %MODEL_FILES_MISSING%==1 (
     echo Found existing model files, skipping download...
 )
 
-:: Create corpus and build retrieval index
-echo Creating corpus...
-python "%ROOT_DIR%\BlueStar\scripts\create_corpus.py"
-if errorlevel 1 (
-    echo Failed to create corpus!
-    exit /b 1
+:: Create corpus and build retrieval index only if needed
+echo Checking for existing corpus...
+if exist "%ROOT_DIR%\BlueStar\data\corpus\*.txt" (
+    echo Found existing corpus files, skipping corpus creation...
+) else (
+    echo Creating corpus...
+    python "%ROOT_DIR%\BlueStar\scripts\create_corpus.py"
+    if errorlevel 1 (
+        echo Failed to create corpus!
+        exit /b 1
+    )
 )
 
-echo Building retrieval index...
-python "%ROOT_DIR%\BlueStar\scripts\build_retrieval.py"
-if errorlevel 1 (
-    echo Failed to build retrieval index!
-    exit /b 1
+:: Build retrieval index only if needed
+if exist "%ROOT_DIR%\BlueStar\data\faiss_index.bin" (
+    echo Found existing retrieval index, skipping build...
+) else (
+    echo Building retrieval index...
+    python "%ROOT_DIR%\BlueStar\scripts\build_retrieval.py"
+    if errorlevel 1 (
+        echo Failed to build retrieval index!
+        exit /b 1
+    )
 )
 
 :: Quantize model

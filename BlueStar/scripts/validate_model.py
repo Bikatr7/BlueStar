@@ -1,7 +1,15 @@
 import time
 import json
-from utils.generation import RAGModel
-from utils.retrieval import Retriever
+import os
+import sys
+
+## Add the BlueStar directory to the Python path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+bluestar_dir = os.path.dirname(os.path.dirname(script_dir))
+sys.path.insert(0, bluestar_dir)
+
+from BlueStar.utils.generation import RAGModel
+from BlueStar.utils.retrieval import Retriever
 
 def validate_model(model_path: str, test_set: str, index_path: str, corpus_path: str):
     ## Initialize RAG model
@@ -44,8 +52,9 @@ def validate_model(model_path: str, test_set: str, index_path: str, corpus_path:
     return results
 
 if __name__ == "__main__":
-    MODEL_PATH = "../models/quantized-mistral-7b"
-    TEST_SET = "../data/test_set.txt"
-    INDEX_PATH = "../data/faiss_index.bin"
-    CORPUS_PATH = "../data/corpus.pkl"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(script_dir, "..", "models", "quantized-mistral-7b")
+    TEST_SET = os.path.join(script_dir, "..", "data", "test_set.txt")
+    INDEX_PATH = os.path.join(script_dir, "..", "data", "faiss_index.bin")
+    CORPUS_PATH = os.path.join(script_dir, "..", "data", "corpus.pkl")
     validate_model(MODEL_PATH, TEST_SET, INDEX_PATH, CORPUS_PATH)

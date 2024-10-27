@@ -163,3 +163,7 @@ models/
 
 .venv/
 venv/
+
+corpus/
+corpus.pkl
+faiss_index.bin

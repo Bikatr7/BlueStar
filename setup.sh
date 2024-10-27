@@ -73,6 +73,7 @@ fi
 
 ## Create necessary directories
 mkdir -p "${ROOT_DIR}/BlueStar/models/mistral-7b"
+mkdir -p "${ROOT_DIR}/BlueStar/models/quantized-mistral-7b"
 mkdir -p "${ROOT_DIR}/BlueStar/data/corpus"
 
 ## Check for model files
@@ -102,19 +103,29 @@ else
     echo "Found existing model files, skipping download..."
 fi
 
-## Create corpus and build retrieval index
-echo "Creating corpus..."
-python3 "${ROOT_DIR}/BlueStar/scripts/create_corpus.py"
-if [ $? -ne 0 ]; then
-    echo "Failed to create corpus!"
-    exit 1
+# Create corpus and build retrieval index only if needed
+echo "Checking for existing corpus..."
+if ls "${ROOT_DIR}/BlueStar/data/corpus/"*.txt >/dev/null 2>&1; then
+    echo "Found existing corpus files, skipping corpus creation..."
+else
+    echo "Creating corpus..."
+    python3 "${ROOT_DIR}/BlueStar/scripts/create_corpus.py"
+    if [ $? -ne 0 ]; then
+        echo "Failed to create corpus!"
+        exit 1
+    fi
 fi
 
-echo "Building retrieval index..."
-python3 "${ROOT_DIR}/BlueStar/scripts/build_retrieval.py"
-if [ $? -ne 0 ]; then
-    echo "Failed to build retrieval index!"
-    exit 1
+# Build retrieval index only if needed
+if [ -f "${ROOT_DIR}/BlueStar/data/faiss_index.bin" ]; then
+    echo "Found existing retrieval index, skipping build..."
+else
+    echo "Building retrieval index..."
+    python3 "${ROOT_DIR}/BlueStar/scripts/build_retrieval.py"
+    if [ $? -ne 0 ]; then
+        echo "Failed to build retrieval index!"
+        exit 1
+    fi
 fi
 
 ## Quantize model

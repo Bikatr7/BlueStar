@@ -1,14 +1,30 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from utils.retrieval import Retriever
+from BlueStar.utils.retrieval import Retriever
+import torch
 
 class RAGModel:
     def __init__(self, model_path: str, retriever: Retriever, device: str = 'cpu'):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model = AutoModelForCausalLM.from_pretrained(model_path, device_map=device)
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                device_map=device,
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True
+            )
+            ## Set pad token to eos token
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+                self.model.config.pad_token_id = self.model.config.eos_token_id
+            
+        except Exception as e:
+            raise Exception(f"Failed to load model from {model_path}: {str(e)}")
+            
         self.retriever = retriever
         self.device = device
         self.disallowed_topics = ['violence', 'illegal', 'hate', 'privacy']
         self.max_context_length = 2048
+        self.max_new_tokens = 512  ## Maximum new tokens to generate
         self.system_prompt = """You are a helpful AI assistant. Always provide accurate, 
         factual information based on the given context. If you're unsure or the context 
         doesn't contain relevant information, say so."""
@@ -20,11 +36,11 @@ class RAGModel:
                 return False
         return True
 
-    def generate_response(self, query: str, top_k: int = 5, max_length: int = 150):
+    def generate_response(self, query: str, top_k: int = 5):
         if not self.is_allowed(query):
             return "I apologize, but I cannot assist with that topic due to ethical constraints.", []
 
-        # Retrieve and format relevant documents
+        ## Retrieve and format relevant documents
         retrieved_docs = self.retriever.retrieve(query, top_k)
         formatted_docs = []
         for i, doc in enumerate(retrieved_docs, 1):
@@ -36,17 +52,22 @@ class RAGModel:
         prompt = f"{self.system_prompt}\n\nContext:\n{context}\n\nQuestion: {query}\nAnswer:"
         
         try:
-            inputs = self.tokenizer.encode(prompt, return_tensors='pt', 
-                                         truncation=True, 
-                                         max_length=self.max_context_length).to(self.device)
+            inputs = self.tokenizer(
+                prompt, 
+                return_tensors='pt',
+                truncation=True,
+                max_length=self.max_context_length,
+                padding=True
+            ).to(self.device)
             
             outputs = self.model.generate(
-                inputs,
-                max_length=max_length,
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
                 num_return_sequences=1,
                 temperature=0.7,
                 top_p=0.9,
-                do_sample=True
+                do_sample=True,
+                pad_token_id=self.tokenizer.pad_token_id
             )
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             

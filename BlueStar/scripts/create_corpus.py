@@ -2,12 +2,15 @@ import os
 from datasets import load_dataset
 
 def download_wikipedia_corpus(num_articles=1000):
-    """Downloads Wikipedia articles and saves them as individual files"""
-    corpus_dir = "../data/corpus"
+    #"""Downloads Wikipedia articles and saves them as individual files"""
+    # Get the absolute path to the BlueStar/data/corpus directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))  ## Get script directory
+    corpus_dir = os.path.join(script_dir, "..", "data", "corpus")
+    corpus_dir = os.path.abspath(corpus_dir)  ## Convert to absolute path
+    
     os.makedirs(corpus_dir, exist_ok=True)
     
     print("Loading Wikipedia dataset...")
-    ## Load a specific subset focused on ML/AI topics
     dataset = load_dataset(
         "wikipedia", 
         "20220301.en", 
@@ -27,7 +30,8 @@ def download_wikipedia_corpus(num_articles=1000):
             
         ## Check if article is relevant
         if any(keyword in article['text'].lower() for keyword in keywords):
-            title = article['title'].replace('/', '_')
+            ## Clean the title to be filesystem-safe
+            title = "".join(c for c in article['title'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
             content = f"Title: {article['title']}\n\n{article['text']}"
             
             filename = f"{articles_saved:04d}_{title[:50]}.txt"
