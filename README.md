@@ -2,6 +2,10 @@
 
 A lightweight, local Retrieval-Augmented Generation (RAG) system powered by GPT-2 Large (774M parameters), running entirely on CPU.
 
+## Note to BlueStaq Reviewers
+
+TBD
+
 ## Features
 
 - **Local Execution:** Runs entirely on your local machine without the need for cloud resources.
@@ -191,10 +195,15 @@ AGPL-3.0 - See `LICENSE.md` for details
 
 ## Future Directions
 
-- **Advanced Quantization Techniques:** Exploring static quantization and quantization-aware training for further performance improvements.
-- **GUI Development:** Building a graphical user interface for more intuitive interactions.
+### Achievable
+
 - **Expanded Corpus:** Integrating additional datasets to enhance the model's knowledge base.
-- **Multi-language Support:** Extending capabilities to support multiple languages for broader usability.
+- **Better Generation** Model currently performs poorly. This can be improved
+
+### If Given More Time
+
+- **Overal Optimization** Frankly, a lot can be optimized. In the few short days I was given I was mostly on break, working, or school. I'd probably rework it from the ground up given another chance.
+- **GPU Support** Optinal GPU support would be great.
 
 ## Contact
 
