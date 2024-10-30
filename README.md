@@ -4,7 +4,11 @@ A lightweight, local Retrieval-Augmented Generation (RAG) system powered by GPT-
 
 ## Note to BlueStaq Reviewers
 
-TBD
+The model does not perform that "well", I haven't had the time to strictly optimize the thing, merely just the day to get it done and have something presentable. Frankly, I tried, but I am unable to deliver such a product in 5 days while going to school full time and working an internship.
+
+I'd be more than happy to discuss it, and possibly continue along. But I have other avenues to pursue for this summer and hope to try again perhaps another time.
+
+Thank you for your time.
 
 ## Features
 
@@ -39,7 +43,7 @@ BlueStar leverages PyTorch's dynamic quantization to optimize the GPT-2 Large mo
 
 - **Python:** 3.10+
 - **RAM:** 8GB minimum
-- **Disk Space:** 30-40GB free (i'll clean this up later hopefully)
+- **Disk Space:** 40-50GB free (i'll clean this up later hopefully (i did not))
 - **Operating System:** Windows or Linux (Ubuntu-based distros supported out of the box)
 
 ## Installation
@@ -132,7 +136,7 @@ BlueStar's architecture is divided into four core components:
 
 ## Performance
 
-### Will deal with this later
+### Not tested in detail (not good)
 
 ## Features in Detail
 
@@ -195,16 +199,14 @@ AGPL-3.0 - See `LICENSE.md` for details
 
 ## Future Directions
 
-### Achievable
-
-- **Expanded Corpus:** Integrating additional datasets to enhance the model's knowledge base.
-- **Better Generation** Model currently performs poorly. This can be improved
-
 ### If Given More Time
 
+- **Expanded Corpus:** Integrating additional datasets to enhance the model's knowledge base.
+- **Better Generation** Model currently performs poorly. This can be improved.
+- **Configurable Corpus** Currently just fetches data from hardcoded key words.
 - **Overal Optimization** Frankly, a lot can be optimized. In the few short days I was given I was mostly on break, working, or school. I'd probably rework it from the ground up given another chance.
 - **GPU Support** Optinal GPU support would be great.
 
 ## Contact
 
-For any questions, issues, or contributions, please open an issue on the [GitHub repository](https://github.com/Bikatr7/BlueStar) or contact the maintainer directly.
+For any questions, issues, or contributions, please open an issue on the [GitHub repository](https://github.com/Bikatr7/BlueStar).
